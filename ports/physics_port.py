@@ -49,3 +49,6 @@ class PhysicsPort(ABC):
     def is_grounded(self, object_id: int) -> bool:
         """Verifica se um objeto está no chão"""
         pass
+
+    def flip_gravity(self) -> None:
+        pass

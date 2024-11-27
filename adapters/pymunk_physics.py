@@ -1,108 +1,154 @@
+import logging
 from typing import Dict, Set, Tuple
 import pymunk
 from domain.physics.vector2D import Vector2D
 from ports.physics_port import PhysicsPort
 
+logging.basicConfig(level=logging.DEBUG)
 
 class PymunkPhysicsAdapter(PhysicsPort):
     def __init__(self, gravity: Vector2D = Vector2D(0, 9.81)):
+        logging.debug("Inicializando PymunkPhysicsAdapter com gravidade: %s", gravity)
         self.space = pymunk.Space()
         self.space.gravity = (gravity.x, gravity.y)
+        self.default_gravity = gravity
+        self.gravity_multiplier = 1
+        
+        self.space.iterations = 30
         
         self.bodies: Dict[int, pymunk.Body] = {}
         self.shapes: Dict[int, pymunk.Shape] = {}
         self.next_id = 0
         
-        self.CATEGORY_DYNAMIC = 1
-        self.CATEGORY_GROUND = 2
-        self.CATEGORY_PLATFORM = 4
+        self.CATEGORY_DYNAMIC = 0b001
+        self.CATEGORY_GROUND = 0b010
+        self.CATEGORY_PLATFORM = 0b100
 
         self.grounded_bodies: Set[int] = set()
         
         self._setup_collision_handlers()
+        
+        # Debug flags
+        self.debug_collisions = True
+
+    def flip_gravity(self):
+        """Inverte a direção da gravidade"""
+        self.gravity_multiplier *= -1
+        self.space.gravity = (
+            self.default_gravity.x,
+            self.default_gravity.y * self.gravity_multiplier
+        )
+        logging.debug(f"Gravidade invertida: {self.space.gravity}")
 
     def apply_force(self, object_id: int, force: Vector2D) -> None:
-        """Aplica uma força a um objeto específico"""
         if object_id in self.bodies:
             body = self.bodies[object_id]
             body.apply_force_at_local_point((force.x, force.y), (0, 0))
 
     def set_velocity(self, object_id: int, velocity: Vector2D) -> None:
-        """Define a velocidade de um objeto"""
         if object_id in self.bodies:
             body = self.bodies[object_id]
-            body.velocity = (velocity.x, velocity.y)
+            max_velocity = 400
+            vx = max(min(velocity.x, max_velocity), -max_velocity)
+            vy = max(min(velocity.y, max_velocity), -max_velocity)
+            body.velocity = (vx, vy)
 
     def get_velocity(self, object_id: int) -> Vector2D:
-        """Obtém a velocidade atual de um objeto"""
         if object_id in self.bodies:
             body = self.bodies[object_id]
             return Vector2D(body.velocity.x, body.velocity.y)
         return Vector2D(0, 0)
 
     def get_position(self, object_id: int) -> Vector2D:
-        """Obtém a posição atual de um objeto"""
         if object_id in self.bodies:
             body = self.bodies[object_id]
             return Vector2D(body.position.x, body.position.y)
         return Vector2D(0, 0)
 
     def set_position(self, object_id: int, position: Vector2D) -> None:
-        """Define a posição de um objeto"""
         if object_id in self.bodies:
             body = self.bodies[object_id]
             body.position = (position.x, position.y)
 
     def _setup_collision_handlers(self):
-        def begin_collision(arbiter, space, data):
-            # Obtém as formas da colisão
+       def begin_collision(arbiter, space, data):
+            if self.debug_collisions:
+                logging.debug(f"Colisão detectada! Normal: {arbiter.normal}")
+            
             shapes = arbiter.shapes
             normal = arbiter.normal
             
-            # Identifica qual shape é o jogador e qual é o chão
-            player_shape = None
+            # Identifica as shapes
+            dynamic_shape = None
             ground_shape = None
             
             for shape in shapes:
                 if shape.collision_type == self.CATEGORY_DYNAMIC:
-                    player_shape = shape
+                    dynamic_shape = shape
                 elif shape.collision_type == self.CATEGORY_GROUND:
                     ground_shape = shape
             
-            if player_shape and ground_shape:
-                print(normal.y)
-                # Verifica se a colisão é vertical (usando o vetor normal)
-                if normal.y < -0.7:  # Colisão vindo de cima
-                    # Encontra o ID do corpo do jogador
+            if dynamic_shape and ground_shape:
+                # Verifica a direção da normal de colisão
+                # Se a gravidade for positiva (para baixo), queremos normal.y > 0
+                # Se a gravidade for negativa (para cima), queremos normal.y < 0
+                is_ground_collision = False
+                
+                if self.gravity_multiplier > 0:  # Gravidade normal
+                    is_ground_collision = normal.y > 0.5
+                else:  # Gravidade invertida
+                    is_ground_collision = normal.y < -0.5
+                
+                if is_ground_collision:
+                    if self.debug_collisions:
+                        logging.debug("Colisão com o chão detectada!")
+                    
+                    # Encontra o ID do corpo dinâmico
                     for body_id, shape in self.shapes.items():
-                        if shape == player_shape:
+                        if shape == dynamic_shape:
                             self.grounded_bodies.add(body_id)
+                            if self.debug_collisions:
+                                logging.debug(f"Objeto {body_id} está no chão")
                             break
-            return True
+                return True
 
-        def separate_collision(arbiter, space, data):
-            shapes = arbiter.shapes
-            player_shape = None
+            def separate_collision(arbiter, space, data):
+                if self.debug_collisions:
+                    logging.debug("Separação detectada!")
             
-            for shape in shapes:
-                if shape.collision_type == self.CATEGORY_DYNAMIC:
-                    player_shape = shape
+                shapes = arbiter.shapes
+                dynamic_shape = None
+            
+                for shape in shapes:
+                    if shape.collision_type == self.CATEGORY_DYNAMIC:
+                        dynamic_shape = shape
                     break
                     
-            if player_shape:
-                for body_id, shape in self.shapes.items():
-                    if shape == player_shape:
-                        self.grounded_bodies.discard(body_id)
-                        break
-            return True
+                if dynamic_shape:
+                    for body_id, shape in self.shapes.items():
+                        if shape == dynamic_shape:
+                            self.grounded_bodies.discard(body_id)
+                            if self.debug_collisions:
+                                logging.debug(f"Objeto {body_id} não está mais no chão")
+                            break
+                return True
 
-        # Configura o handler entre DYNAMIC e GROUND
-        handler = self.space.add_collision_handler(
+        # Handler para colisão com o chão
+            ground_handler = self.space.add_collision_handler(
             self.CATEGORY_DYNAMIC,
             self.CATEGORY_GROUND
+            )
+        
+            ground_handler.begin = begin_collision
+         
+            ground_handler.separate = separate_collision
+
+        # Handler para colisão entre objetos dinâmicos
+            dynamic_handler = self.space.add_collision_handler(
+            self.CATEGORY_DYNAMIC,
+            self.CATEGORY_DYNAMIC
         )
-        handler.begin = begin_collision
-        handler.separate = separate_collision
+            dynamic_handler.begin = lambda a, s, d: True
 
     def create_dynamic_body(self, position: Vector2D, size: Tuple[float, float], mass: float) -> int:
         moment = pymunk.moment_for_box(mass, size)
@@ -110,15 +156,16 @@ class PymunkPhysicsAdapter(PhysicsPort):
         body.position = (position.x, position.y)
         
         shape = pymunk.Poly.create_box(body, size)
-        shape.elasticity = 0.0  # Sem elasticidade para melhor controle
-        shape.friction = 1    # Fricção moderada
+        shape.elasticity = 0.1  # Sem bounce
+        shape.friction = 0.7
         shape.collision_type = self.CATEGORY_DYNAMIC
         
-        # Configura filtro de colisão
+        # Configuração para colidir com tudo
         shape.filter = pymunk.ShapeFilter(
             categories=self.CATEGORY_DYNAMIC,
-            mask=self.CATEGORY_GROUND | self.CATEGORY_PLATFORM
+            mask=self.CATEGORY_GROUND | self.CATEGORY_PLATFORM | self.CATEGORY_DYNAMIC
         )
+        
         self.space.add(body, shape)
         
         body_id = self.next_id
@@ -131,14 +178,12 @@ class PymunkPhysicsAdapter(PhysicsPort):
     def create_static_body(self, position: Vector2D, size: Tuple[float, float]) -> int:
         body = pymunk.Body(body_type=pymunk.Body.STATIC)
         body.position = (position.x, position.y)
-        
         shape = pymunk.Poly.create_box(body, size)
-        shape.friction = 1
-        shape.elasticity = 0.0
+        shape.friction = 0.7
+        shape.elasticity = 0.1  # Sem bounce
         shape.collision_type = self.CATEGORY_GROUND
         
-        shape.density = 1
-        # Configura filtro de colisão
+        # Configuração para colidir com objetos dinâmicos
         shape.filter = pymunk.ShapeFilter(
             categories=self.CATEGORY_GROUND,
             mask=self.CATEGORY_DYNAMIC
@@ -157,8 +202,14 @@ class PymunkPhysicsAdapter(PhysicsPort):
         return object_id in self.grounded_bodies
 
     def update(self, delta_time: float) -> None:
-        fixed_dt = 1/60.0
-        steps = max(1, int(delta_time / fixed_dt))
-        
+        steps = max(1, int(delta_time / (1/120.0)))
+        dt = delta_time / steps
+    
         for _ in range(steps):
-            self.space.step(fixed_dt)
+            for body_id in self.bodies:
+                body = self.bodies[body_id]
+                if body.body_type == pymunk.Body.DYNAMIC:
+                    if abs(body.velocity.y) > 500:
+                        body.velocity = (body.velocity.x, 500 if body.velocity.y > 0 else -500)
+            
+            self.space.step(dt)

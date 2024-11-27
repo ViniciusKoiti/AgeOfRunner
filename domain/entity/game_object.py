@@ -12,13 +12,11 @@ class GameObject:
                  sprite_path: str = None):
         self.size = size
         self.sprite = None
-        
+
         if mass == float('inf'):
             self.body_id = physics.create_static_body(position, size)
-            print(self.body_id)
         else:
             self.body_id = physics.create_dynamic_body(position, size, mass)
-            print(self.body_id)            
         self.physics = physics
         
     @property

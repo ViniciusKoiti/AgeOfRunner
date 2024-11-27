@@ -10,29 +10,27 @@ class Player(GameObject):
             physics=physics,
             position=position,
             size=(32, 32),
-            mass=1.0  # massa normal para objeto dinâmico
+            mass=50.0
         )
-        self.move_force = 1000.0
+        self.move_force = 3000.0
         self.jump_force = 2000.0
+        self.can_toggle_gravity = True
         
     def update(self, delta_time: float):
         super().update(delta_time)
-
         
         if self.is_grounded:
-            self.can_jump = True
+            self.can_toggle_gravity = True
             
             current_vel = self.velocity
-            friction_factor = 1  # Ajuste conforme necessário
+            friction_factor = 0.8
             self.velocity = Vector2D(current_vel.x * friction_factor, current_vel.y)
             
-            # Animações
             if abs(self.velocity.x) > 10:
                 self.current_animation = "run"
             else:
                 self.current_animation = "idle"
         else:
-            # Lógica no ar
             if self.velocity.y < 0:
                 self.current_animation = "jump"
             else:
@@ -45,10 +43,9 @@ class Player(GameObject):
         self.apply_force(Vector2D(-self.move_force, 0))
         
     def jump(self):
-
-        if(self.is_grounded):
-   
-            self.apply_force(Vector2D(0, -self.jump_force))
+        if isinstance(self.physics, PhysicsPort):
+            self.physics.flip_gravity()
+            self.can_toggle_gravity = False  
 
     def handle_input(self, event_handler: EventPort):
         if event_handler.is_key_pressed("left"):

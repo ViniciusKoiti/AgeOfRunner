@@ -35,13 +35,13 @@ class Game:
         # Passa a porta de física para os objetos
         player = Player(
             physics=self.physics,
-            position=Vector2D(20, 250)
+            position=Vector2D(500, 250)
         )
         
         ground = GroundSegment(
             physics=self.physics,
             position=Vector2D(0, 300),
-            width=800
+            width=1600
         )
 
         
@@ -78,8 +78,7 @@ class Game:
         if self.state == GameState.PLAYING:
             self.physics.update(delta_time)
             
-            for obj in self.game_objects:
-                obj.update(delta_time)
+        
             
     def render(self):
         self.renderer.clear()
