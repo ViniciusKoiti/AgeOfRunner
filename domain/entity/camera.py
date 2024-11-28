@@ -9,8 +9,8 @@ class Camera:
         self.world_bounds = world_bounds  # (min_x, min_y, max_x, max_y)
         
     def follow(self, target_position: Vector2D):
-        self.world_x = target_position.x - (self.viewport_width / 2)
-        self.world_y = target_position.y - (self.viewport_height / 2)
+        self.world_x = target_position.x - (self.viewport_width / 1.5)
+        self.world_y = target_position.y - (self.viewport_height / 1.5)
         
         self.world_x = max(self.world_bounds[0], 
                           min(self.world_x, 

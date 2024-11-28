@@ -38,12 +38,12 @@ class Game:
     def init_game_objects(self):
         player = Player(
             physics=self.physics,
-            position=Vector2D(500, 250)
+            position=Vector2D(800, 500)
         )
         
         ground = GroundSegment(
             physics=self.physics,
-            position=Vector2D(0, 300),
+            position=Vector2D(0, 550),
             width=1600
         )
 

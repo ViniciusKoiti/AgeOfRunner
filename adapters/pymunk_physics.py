@@ -156,8 +156,6 @@ class PymunkPhysicsAdapter(PhysicsPort):
         body.position = (position.x, position.y)
         
         shape = pymunk.Poly.create_box(body, size)
-        shape.elasticity = 0.1  # Sem bounce
-        shape.friction = 0.7
         shape.collision_type = self.CATEGORY_DYNAMIC
         
         # Configuração para colidir com tudo
@@ -179,11 +177,7 @@ class PymunkPhysicsAdapter(PhysicsPort):
         body = pymunk.Body(body_type=pymunk.Body.STATIC)
         body.position = (position.x, position.y)
         shape = pymunk.Poly.create_box(body, size)
-        shape.friction = 0.7
-        shape.elasticity = 0.1  # Sem bounce
-        shape.collision_type = self.CATEGORY_GROUND
-        
-        # Configuração para colidir com objetos dinâmicos
+        shape.collision_type = self.CATEGORY_GROUND        
         shape.filter = pymunk.ShapeFilter(
             categories=self.CATEGORY_GROUND,
             mask=self.CATEGORY_DYNAMIC
