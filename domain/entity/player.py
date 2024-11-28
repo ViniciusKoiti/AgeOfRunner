@@ -23,8 +23,7 @@ class Player(GameObject):
             self.can_toggle_gravity = True
             
             current_vel = self.velocity
-            friction_factor = 0.8
-            self.velocity = Vector2D(current_vel.x * friction_factor, current_vel.y)
+            self.velocity = Vector2D(current_vel.x, current_vel.y)
             
             if abs(self.velocity.x) > 10:
                 self.current_animation = "run"

@@ -50,3 +50,9 @@ class GameObject:
             renderer.draw_sprite(self.sprite, self.position)
         else:
             renderer.draw_rect(self.position, self.size, (255, 0, 0))
+
+    def render_at_position(self, renderer: RendererPort, screen_pos: Vector2D):
+        if self.sprite:
+            renderer.draw_sprite(self.sprite, screen_pos)
+        else:
+            renderer.draw_rect(screen_pos, self.size, (255, 0, 0))        

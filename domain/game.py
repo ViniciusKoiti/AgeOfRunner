@@ -1,4 +1,5 @@
 from typing import List
+from domain.entity.camera import Camera
 from domain.entity.ground_segment import GroundSegment
 from domain.menu import Menu
 from domain.entity.player import Player
@@ -9,6 +10,8 @@ from ports.clock_port import ClockPort
 from ports.event_port import EventPort
 from ports.renderer_port import RendererPort
 from ports.physics_port import PhysicsPort
+
+WORLD_BOUNDS = (0, 0, 3000, 1000) 
 
 class Game:
     def __init__(self, 
@@ -22,6 +25,7 @@ class Game:
         self.physics = physics  # Nova porta de física
         self.state = GameState.MENU
         self.game_objects: List[GameObject] = []
+        self.camera = Camera(800, 600, WORLD_BOUNDS)
         self.menu = self.create_menu()
         
     def create_menu(self) -> Menu:
@@ -32,7 +36,6 @@ class Game:
         return menu
     
     def init_game_objects(self):
-        # Passa a porta de física para os objetos
         player = Player(
             physics=self.physics,
             position=Vector2D(500, 250)
@@ -74,10 +77,18 @@ class Game:
                 
     def update(self):
         delta_time = self.clock.get_delta_time()
-        
+       
+        for obj in self.game_objects:
+            obj.update(delta_time)
+
         if self.state == GameState.PLAYING:
             self.physics.update(delta_time)
-            
+            for obj in self.game_objects:
+                if isinstance(obj, Player):
+                    self.camera.follow(obj.position)
+                    break
+                
+        self.renderer.present()    
         
             
     def render(self):
@@ -87,8 +98,10 @@ class Game:
             self.menu.render()
         elif self.state == GameState.PLAYING:
             for obj in self.game_objects:
-                obj.render(self.renderer)
-                
+                if self.camera.is_in_view(obj.position, obj.size[0], obj.size[1]):
+                    screen_pos = self.camera.world_to_screen(obj.position)
+                    obj.render_at_position(self.renderer, screen_pos)
+           
         self.renderer.present()
             
     def run(self):
