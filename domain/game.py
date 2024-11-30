@@ -11,7 +11,7 @@ from ports.event_port import EventPort
 from ports.renderer_port import RendererPort
 from ports.physics_port import PhysicsPort
 
-WORLD_BOUNDS = (0, 0, 3000, 1000) 
+WORLD_BOUNDS = (0, 0, 1000, 1000) 
 
 class Game:
     def __init__(self, 
@@ -38,13 +38,13 @@ class Game:
     def init_game_objects(self):
         player = Player(
             physics=self.physics,
-            position=Vector2D(800, 500)
+            position=Vector2D(400, 500)
         )
         
         ground = GroundSegment(
             physics=self.physics,
             position=Vector2D(0, 550),
-            width=1600
+            width=800
         )
 
         

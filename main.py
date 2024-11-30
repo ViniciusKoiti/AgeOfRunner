@@ -1,6 +1,7 @@
 import pygame
 
 
+from adapters.debug_pygame_renderer import DebugPygameRenderer
 from adapters.pygame_clock import PygameClock
 from adapters.pygame_event import PygameEvent
 from adapters.pygame_renderer import PygameRenderer
@@ -12,7 +13,7 @@ def main():
     pygame.init()
     screen = pygame.display.set_mode((800, 600))
 
-    renderer = PygameRenderer(screen)
+    renderer = DebugPygameRenderer(screen)
     event_handler = PygameEvent()
     clock = PygameClock()
     physics = PymunkPhysicsAdapter(Vector2D(0, 98.1))

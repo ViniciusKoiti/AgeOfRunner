@@ -4,6 +4,8 @@ import pymunk
 from domain.physics.vector2D import Vector2D
 from ports.physics_port import PhysicsPort
 
+from pymunk.vec2d import Vec2d
+
 logging.basicConfig(level=logging.DEBUG)
 
 class PymunkPhysicsAdapter(PhysicsPort):
@@ -14,7 +16,7 @@ class PymunkPhysicsAdapter(PhysicsPort):
         self.default_gravity = gravity
         self.gravity_multiplier = 1
         
-        self.space.iterations = 30
+        self.space.iterations = 20
         
         self.bodies: Dict[int, pymunk.Body] = {}
         self.shapes: Dict[int, pymunk.Shape] = {}
@@ -89,9 +91,6 @@ class PymunkPhysicsAdapter(PhysicsPort):
                     ground_shape = shape
             
             if dynamic_shape and ground_shape:
-                # Verifica a direção da normal de colisão
-                # Se a gravidade for positiva (para baixo), queremos normal.y > 0
-                # Se a gravidade for negativa (para cima), queremos normal.y < 0
                 is_ground_collision = False
                 
                 if self.gravity_multiplier > 0:  # Gravidade normal
@@ -133,17 +132,15 @@ class PymunkPhysicsAdapter(PhysicsPort):
                             break
                 return True
 
-        # Handler para colisão com o chão
             ground_handler = self.space.add_collision_handler(
-            self.CATEGORY_DYNAMIC,
-            self.CATEGORY_GROUND
+                self.CATEGORY_DYNAMIC,
+                self.CATEGORY_GROUND
             )
         
             ground_handler.begin = begin_collision
          
             ground_handler.separate = separate_collision
 
-        # Handler para colisão entre objetos dinâmicos
             dynamic_handler = self.space.add_collision_handler(
             self.CATEGORY_DYNAMIC,
             self.CATEGORY_DYNAMIC
@@ -158,7 +155,6 @@ class PymunkPhysicsAdapter(PhysicsPort):
         shape = pymunk.Poly.create_box(body, size)
         shape.collision_type = self.CATEGORY_DYNAMIC
         
-        # Configuração para colidir com tudo
         shape.filter = pymunk.ShapeFilter(
             categories=self.CATEGORY_DYNAMIC,
             mask=self.CATEGORY_GROUND | self.CATEGORY_PLATFORM | self.CATEGORY_DYNAMIC
@@ -174,29 +170,35 @@ class PymunkPhysicsAdapter(PhysicsPort):
         return body_id
 
     def create_static_body(self, position: Vector2D, size: Tuple[float, float]) -> int:
-        body = pymunk.Body(body_type=pymunk.Body.STATIC)
-        body.position = (position.x, position.y)
-        shape = pymunk.Poly.create_box(body, size)
-        shape.collision_type = self.CATEGORY_GROUND        
-        shape.filter = pymunk.ShapeFilter(
-            categories=self.CATEGORY_GROUND,
-            mask=self.CATEGORY_DYNAMIC
-        )
-        
-        self.space.add(body, shape)
-        
+        segment_body = pymunk.Body(body_type=pymunk.Body.STATIC)
+        segment_body.position = position.x, position.y
+
+        start_point = Vec2d(0, 0)  # Começa na posição do corpo
+        end_point = Vec2d(size[0], 0)  # Estende horizontalmente pelo width especificado
+    
+        segment = pymunk.Segment(segment_body, start_point, end_point, size[1]/2)  # usa height/2 como espessura
+        segment.friction = 1.0
+        segment.collision_type = self.CATEGORY_GROUND        
+        segment.filter = pymunk.ShapeFilter(
+        categories=self.CATEGORY_GROUND,
+        mask=self.CATEGORY_DYNAMIC
+    )
+
+        self.space.add(segment_body, segment)
+    
         body_id = self.next_id
         self.next_id += 1
-        self.bodies[body_id] = body
-        self.shapes[body_id] = shape
-        
+        self.bodies[body_id] = segment_body
+        self.shapes[body_id] = segment
+    
         return body_id
+        
 
     def is_grounded(self, object_id: int) -> bool:
         return object_id in self.grounded_bodies
 
     def update(self, delta_time: float) -> None:
-        steps = max(1, int(delta_time / (1/120.0)))
+        steps = max(1, delta_time)
         dt = delta_time / steps
     
         for _ in range(steps):
