@@ -2,6 +2,7 @@ from domain.entity.game_object import GameObject
 from domain.physics.vector2D import Vector2D
 from ports.event_port import EventPort
 from ports.physics_port import PhysicsPort
+import time
 
 
 class Player(GameObject):
@@ -15,9 +16,18 @@ class Player(GameObject):
         self.move_force = 3000.0
         self.jump_force = 2000.0
         self.can_toggle_gravity = True
+        self.jump_delay = 0.5  # Meio segundo de delay
+        self.jump_timer = 0
+        self.can_jump = True
         
     def update(self, delta_time: float):
         super().update(delta_time)
+
+        if not self.can_jump:
+            self.jump_timer += delta_time
+            if self.jump_timer >= self.jump_delay:
+                self.can_jump = True
+                self.jump_timer = 0
         
         if self.is_grounded:
             self.can_toggle_gravity = True
@@ -43,8 +53,11 @@ class Player(GameObject):
         
     def jump(self):
         if isinstance(self.physics, PhysicsPort):
-            self.physics.flip_gravity()
-            self.can_toggle_gravity = False  
+            if(self.is_grounded and self.can_jump):
+                self.physics.flip_gravity()
+                self.can_toggle_gravity = False
+                self.can_jump = False
+                self.can_toggle_gravity = False  
 
     def handle_input(self, event_handler: EventPort):
         if event_handler.is_key_pressed("left"):
@@ -53,3 +66,4 @@ class Player(GameObject):
             self.move_right()
         if event_handler.is_key_pressed("jump"):
             self.jump()
+

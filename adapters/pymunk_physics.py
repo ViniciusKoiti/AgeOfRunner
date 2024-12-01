@@ -73,13 +73,14 @@ class PymunkPhysicsAdapter(PhysicsPort):
             body.position = (position.x, position.y)
 
     def _setup_collision_handlers(self):
-       def begin_collision(arbiter, space, data):
+        def begin_collision(arbiter, space, data):
             if self.debug_collisions:
                 logging.debug(f"Colisão detectada! Normal: {arbiter.normal}")
+                logging.debug(f"Gravity multiplier: {self.gravity_multiplier}")
             
             shapes = arbiter.shapes
             normal = arbiter.normal
-            
+            logging.debug("Colisão com o chão detectada!")
             # Identifica as shapes
             dynamic_shape = None
             ground_shape = None
@@ -111,41 +112,41 @@ class PymunkPhysicsAdapter(PhysicsPort):
                             break
                 return True
 
-            def separate_collision(arbiter, space, data):
-                if self.debug_collisions:
-                    logging.debug("Separação detectada!")
+        def separate_collision(arbiter, space, data):
+            if self.debug_collisions:
+                logging.debug("Separação detectada!")
             
-                shapes = arbiter.shapes
-                dynamic_shape = None
+            shapes = arbiter.shapes
+            dynamic_shape = None
             
-                for shape in shapes:
-                    if shape.collision_type == self.CATEGORY_DYNAMIC:
-                        dynamic_shape = shape
-                    break
+            for shape in shapes:
+                if shape.collision_type == self.CATEGORY_DYNAMIC:
+                    dynamic_shape = shape
+                break
                     
-                if dynamic_shape:
-                    for body_id, shape in self.shapes.items():
-                        if shape == dynamic_shape:
-                            self.grounded_bodies.discard(body_id)
-                            if self.debug_collisions:
-                                logging.debug(f"Objeto {body_id} não está mais no chão")
-                            break
+            if dynamic_shape:
+                for body_id, shape in self.shapes.items():
+                    if shape == dynamic_shape:
+                        self.grounded_bodies.discard(body_id)
+                        if self.debug_collisions:
+                            logging.debug(f"Objeto {body_id} não está mais no chão")
+                        break
                 return True
 
-            ground_handler = self.space.add_collision_handler(
+        ground_handler = self.space.add_collision_handler(
                 self.CATEGORY_DYNAMIC,
                 self.CATEGORY_GROUND
             )
         
-            ground_handler.begin = begin_collision
+        ground_handler.begin = begin_collision
          
-            ground_handler.separate = separate_collision
+        ground_handler.separate = separate_collision
 
-            dynamic_handler = self.space.add_collision_handler(
-            self.CATEGORY_DYNAMIC,
+        dynamic_handler = self.space.add_collision_handler(
+        self.CATEGORY_DYNAMIC,
             self.CATEGORY_DYNAMIC
         )
-            dynamic_handler.begin = lambda a, s, d: True
+        dynamic_handler.begin = lambda a, s, d: True
 
     def create_dynamic_body(self, position: Vector2D, size: Tuple[float, float], mass: float) -> int:
         moment = pymunk.moment_for_box(mass, size)
@@ -175,14 +176,13 @@ class PymunkPhysicsAdapter(PhysicsPort):
 
         start_point = Vec2d(0, 0)  # Começa na posição do corpo
         end_point = Vec2d(size[0], 0)  # Estende horizontalmente pelo width especificado
-    
         segment = pymunk.Segment(segment_body, start_point, end_point, size[1]/2)  # usa height/2 como espessura
         segment.friction = 1.0
         segment.collision_type = self.CATEGORY_GROUND        
         segment.filter = pymunk.ShapeFilter(
-        categories=self.CATEGORY_GROUND,
-        mask=self.CATEGORY_DYNAMIC
-    )
+            categories=self.CATEGORY_GROUND,
+            mask=self.CATEGORY_DYNAMIC
+        )
 
         self.space.add(segment_body, segment)
     

@@ -11,7 +11,7 @@ from ports.event_port import EventPort
 from ports.renderer_port import RendererPort
 from ports.physics_port import PhysicsPort
 
-WORLD_BOUNDS = (0, 0, 1000, 1000) 
+WORLD_BOUNDS = (0, 0, 1500, 1500) 
 
 class Game:
     def __init__(self, 
@@ -38,18 +38,25 @@ class Game:
     def init_game_objects(self):
         player = Player(
             physics=self.physics,
-            position=Vector2D(400, 500)
+            position=Vector2D(200, 400)
         )
         
         ground = GroundSegment(
             physics=self.physics,
             position=Vector2D(0, 550),
-            width=800
+            width=300
+        )
+
+        ground2 = GroundSegment(
+            physics=self.physics,
+            position=Vector2D(0, 300),
+            width=300
         )
 
         
         self.game_objects.append(player)
         self.game_objects.append(ground)
+        self.game_objects.append(ground2)
         
     def start_game(self):
         self.state = GameState.PLAYING
@@ -87,9 +94,7 @@ class Game:
                 if isinstance(obj, Player):
                     self.camera.follow(obj.position)
                     break
-                
         self.renderer.present()    
-        
             
     def render(self):
         self.renderer.clear()
