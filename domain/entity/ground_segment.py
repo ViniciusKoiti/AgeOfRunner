@@ -13,8 +13,8 @@ class GroundSegment(GameObject):
             mass=float('inf')  # massa infinita para objeto estático
         )
 
-    def render_at_position(self, renderer: RendererPort, screen_pos: Vector2D):
-        super().render_at_position(renderer, screen_pos)
+    def render_at_position(self, renderer: RendererPort, screen_pos: Vector2D, delta_time: float):
+        super().render_at_position(renderer, screen_pos, delta_time)
         
         if hasattr(renderer, 'debug_mode') and renderer.debug_mode:
             import pygame  # importa localmente para evitar dependência desnecessária

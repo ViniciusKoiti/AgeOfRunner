@@ -10,6 +10,7 @@ from ports.clock_port import ClockPort
 from ports.event_port import EventPort
 from ports.renderer_port import RendererPort
 from ports.physics_port import PhysicsPort
+from ports.texture_port import TexturePort
 
 WORLD_BOUNDS = (0, 0, 1500, 1500) 
 
@@ -18,9 +19,12 @@ class Game:
                  renderer: RendererPort, 
                  event_handler: EventPort, 
                  clock: ClockPort,
-                 physics: PhysicsPort):
+                 physics: PhysicsPort,
+                 texture_port: TexturePort
+                 ):
         self.renderer = renderer
         self.event_handler = event_handler
+        self.texture_port = texture_port
         self.clock = clock
         self.physics = physics  # Nova porta de física
         self.state = GameState.MENU
@@ -38,7 +42,8 @@ class Game:
     def init_game_objects(self):
         player = Player(
             physics=self.physics,
-            position=Vector2D(200, 400)
+            position=Vector2D(200, 400),
+            texture_port=self.texture_port
         )
         
         ground = GroundSegment(
@@ -53,10 +58,8 @@ class Game:
             width=300
         )
 
+        self.game_objects.extend([player, ground, ground2])
         
-        self.game_objects.append(player)
-        self.game_objects.append(ground)
-        self.game_objects.append(ground2)
         
     def start_game(self):
         self.state = GameState.PLAYING
@@ -82,8 +85,8 @@ class Game:
                     obj.handle_input(self.event_handler)
                     break
                 
-    def update(self):
-        delta_time = self.clock.get_delta_time()
+    def update(self, delta_time):
+    
        
         for obj in self.game_objects:
             obj.update(delta_time)
@@ -96,7 +99,7 @@ class Game:
                     break
         self.renderer.present()    
             
-    def render(self):
+    def render(self, delta_time):
         self.renderer.clear()
         
         if self.state == GameState.MENU:
@@ -105,17 +108,18 @@ class Game:
             for obj in self.game_objects:
                 if self.camera.is_in_view(obj.position, obj.size[0], obj.size[1]):
                     screen_pos = self.camera.world_to_screen(obj.position)
-                    obj.render_at_position(self.renderer, screen_pos)
+                    obj.render_at_position(self.renderer, screen_pos, delta_time)
            
         self.renderer.present()
             
     def run(self):
         running = True
         while running:
+            delta_time = self.clock.get_delta_time()
             running = self.event_handler.poll_events()
             self.handle_input()
-            self.update()
-            self.render()
+            self.update(delta_time)
+            self.render(delta_time)
             self.clock.update()
             
         if hasattr(self.physics, 'cleanup'):
