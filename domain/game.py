@@ -12,7 +12,7 @@ from ports.renderer_port import RendererPort
 from ports.physics_port import PhysicsPort
 from ports.texture_port import TexturePort
 
-WORLD_BOUNDS = (0, 0, 1500, 1500) 
+WORLD_BOUNDS = (0, 0, 500, 500)
 
 class Game:
     def __init__(self, 

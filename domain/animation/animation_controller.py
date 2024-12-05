@@ -9,6 +9,7 @@ class AnimationController:
         self.animations: Dict[str, Animation] = {}
         self.current_animation = "idle"
         self.facing_right = True
+        self.gravity_inverted = True
         
     def load_animations(self, sprite_sheet_path: str, 
                        frame_data: Dict[str, List[Tuple[int, int, int, int]]], 
@@ -35,7 +36,12 @@ class AnimationController:
     def update(self, delta_time: float) -> Any:
         if self.current_animation in self.animations:
             sprite = self.animations[self.current_animation].update(delta_time)
+            
             if not self.facing_right:
                 sprite = self.texture_port.flip_sprite(sprite, True, False)
+                
+            if self.gravity_inverted:
+                sprite = self.texture_port.flip_sprite(sprite, False, True)
+                
             return sprite
         return None

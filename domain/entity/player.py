@@ -23,6 +23,7 @@ class Player(GameObject):
         self.can_toggle_gravity = True
         self.jump_delay = 0.5 
         self.jump_timer = 0
+        self.gravity_inverted = False
         self.movement_threshold = 10 
         self.animator = AnimationController(texture_port)
         self.setup_animations()
@@ -34,13 +35,11 @@ class Player(GameObject):
             if self.jump_timer >= self.jump_delay:
                 self.can_toggle_gravity = True
                 self.jump_timer = 0
-         # Atualiza a direção que o personagem está olhando
         if self.velocity.x > 0:
             self.animator.facing_right = True
         elif self.velocity.x < 0:
             self.animator.facing_right = False
 
-        # Lógica de estados de animação
         if self.is_grounded:
             if abs(self.velocity.x) > 10:
                 self.set_animation("run")
@@ -88,6 +87,8 @@ class Player(GameObject):
     def jump(self):
         if isinstance(self.physics, PhysicsPort):
             if(self.is_grounded and self.can_toggle_gravity):
+                self.gravity_inverted = not self.gravity_inverted  # Inverte o estado da gravidade
+                self.animator.gravity_inverted = self.gravity_inverted  # Atualiza o animator
                 self.physics.flip_gravity()
                 self.can_toggle_gravity = False
 
@@ -98,4 +99,6 @@ class Player(GameObject):
             self.move_right()
         if event_handler.is_key_pressed("jump"):
             self.jump()
+
+    
 
