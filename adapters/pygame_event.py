@@ -12,6 +12,7 @@ class PygameEvent(EventPort):
            "jump": pygame.K_SPACE,
             "return": pygame.K_BACKSPACE,
        }
+       self.current_text_input = ("", False, False)
 
     @override   
     def is_key_pressed(self, key: str) -> bool:
@@ -23,10 +24,21 @@ class PygameEvent(EventPort):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_BACKSPACE:
+                    self.current_text_input = ("", True, False)
+                elif event.key == pygame.K_RETURN:
+                    self.current_text_input = ("", False, True)
+                elif event.unicode:
+                    self.current_text_input = (event.unicode, False, False)
         return True
     
     @override   
     def quit(self) -> None:
         pygame.quit()
+        
+    @override
+    def get_text_input(self) -> tuple[str, bool, bool]:
+        return self.current_text_input
 
   
