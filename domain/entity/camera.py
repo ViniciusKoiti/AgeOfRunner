@@ -6,6 +6,7 @@ class Camera:
         self.viewport_height = viewport_height
         self.world_x = 0
         self.world_y = 0
+        self.death_margin = 100
         self.world_bounds = world_bounds  # (min_x, min_y, max_x, max_y)
         
     def follow(self, target_position: Vector2D):
@@ -29,3 +30,17 @@ class Camera:
                 position.x <= self.world_x + self.viewport_width and
                 position.y + height >= self.world_y and
                 position.y <= self.world_y + self.viewport_height)
+        
+    def is_in_death_zone(self, position: Vector2D) -> bool:
+        """
+        Verifica se uma posição está na zona de morte (muito longe da câmera)
+        """
+        min_x = self.world_x - self.death_margin
+        max_x = self.world_x + self.viewport_width + self.death_margin
+        min_y = self.world_y - self.death_margin
+        max_y = self.world_y + self.viewport_height + self.death_margin
+        
+        return (position.x < min_x or 
+                position.x > max_x or 
+                position.y < min_y or 
+                position.y > max_y)

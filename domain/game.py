@@ -1,5 +1,3 @@
-# Primeiro, vamos modificar o game.py para incluir a lógica de game over
-
 from typing import List
 from domain.entity.camera import Camera
 from domain.entity.ground_segment import GroundSegment
@@ -33,20 +31,17 @@ class Game:
         self.game_objects: List[GameObject] = []
         self.camera = Camera(800, 600, WORLD_BOUNDS)
         self.menu = self.create_menu()
+        self.score = 0
+        self.furthest_right = None
+        self.player = None
         
-    def create_menu(self) -> Menu:
-        menu = Menu(self.renderer)
-        menu.add_item("Start Game", self.start_game)
-        menu.add_item("Options", self.show_options)
-        menu.add_item("Exit", self.exit_game)
-        return menu
-    
     def init_game_objects(self):
-        player = Player(
+        self.player = Player(
             physics=self.physics,
             position=Vector2D(200, 400),
             texture_port=self.texture_port
         )
+        self.furthest_right = self.player.position.x  # Inicializa com a posição inicial do player
         
         ground = GroundSegment(
             physics=self.physics,
@@ -60,26 +55,19 @@ class Game:
             width=300
         )
 
-        self.game_objects.extend([player, ground, ground2])
+        self.game_objects.extend([self.player, ground, ground2])
         
-    def start_game(self):
-        self.state = GameState.PLAYING
-        self.init_game_objects()
-        
-    def show_options(self):
-        pass
-        
-    def exit_game(self):
-        self.event_handler.quit()
-
     def check_player_in_bounds(self):
-        for obj in self.game_objects:
-            if isinstance(obj, Player):
-                # Verifica se o player está completamente fora da view da câmera
-                if not self.camera.is_in_view(obj.position, obj.size[0], obj.size[1]):
-                    self.state = GameState.GAME_OVER
-                break
-        
+        if self.player and self.camera.is_in_death_zone(self.player.position):
+            self.state = GameState.GAME_OVER
+            
+    def create_menu(self) -> Menu:
+        menu = Menu(self.renderer)
+        menu.add_item("Start Game", self.start_game)
+        menu.add_item("Options", self.show_options)
+        menu.add_item("Exit", self.exit_game)
+        return menu
+                
     def handle_input(self):
         if self.state == GameState.MENU:
             if self.event_handler.is_key_pressed("jump"):
@@ -89,14 +77,15 @@ class Game:
             elif self.event_handler.is_key_pressed("return"):
                 self.menu.activate_selected()
         elif self.state == GameState.PLAYING:
-            for obj in self.game_objects:
-                if isinstance(obj, Player):
-                    obj.handle_input(self.event_handler)
-                    break
+            if self.player:
+                self.player.handle_input(self.event_handler)
         elif self.state == GameState.GAME_OVER:
             if self.event_handler.is_key_pressed("return"):
                 self.state = GameState.MENU
                 self.game_objects.clear()
+                self.player = None
+                self.score = 0  # Reseta o score ao voltar para o menu
+                self.furthest_right = None  # Reseta a posição mais à direita
                 
     def update(self, delta_time):
         for obj in self.game_objects:
@@ -104,12 +93,23 @@ class Game:
 
         if self.state == GameState.PLAYING:
             self.physics.update(delta_time)
-            for obj in self.game_objects:
-                if isinstance(obj, Player):
-                    self.camera.follow(obj.position)
-                    break
-            self.check_player_in_bounds()
-            
+            if self.player:
+                self.camera.follow(self.player.position)
+                self.update_score()
+                self.check_player_in_bounds()
+                
+    def start_game(self):
+        self.state = GameState.PLAYING
+        self.score = 0
+        self.furthest_right = None
+        self.init_game_objects()
+        
+    def show_options(self):
+        pass
+        
+    def exit_game(self):
+        self.event_handler.quit()
+        
     def render(self, delta_time):
         self.renderer.clear()
         
@@ -120,9 +120,11 @@ class Game:
                 if self.camera.is_in_view(obj.position, obj.size[0], obj.size[1]):
                     screen_pos = self.camera.world_to_screen(obj.position)
                     obj.render_at_position(self.renderer, screen_pos, delta_time)
+            self.renderer.draw_text(f"Score: {self.score}", 10, 10, (255, 255, 255))
         elif self.state == GameState.GAME_OVER:
             self.renderer.draw_text("Game Over!", 300, 250, (255, 0, 0))
-            self.renderer.draw_text("Press BACKSPACE to return to menu", 200, 300, (255, 255, 255))
+            self.renderer.draw_text(f"Final Score: {self.score}", 280, 300, (255, 255, 255))
+            self.renderer.draw_text("Press BACKSPACE to return to menu", 200, 350, (255, 255, 255))
            
         self.renderer.present()
             
@@ -139,3 +141,18 @@ class Game:
         if hasattr(self.physics, 'cleanup'):
             self.physics.cleanup()
         self.event_handler.quit()
+        
+    def update_score(self):
+        if not self.player:
+            return
+            
+        current_x = self.player.position.x
+        
+        if self.furthest_right is None:
+            self.furthest_right = current_x
+            return
+            
+        if current_x > self.furthest_right:
+            points = int(current_x - self.furthest_right)
+            self.score += points
+            self.furthest_right = current_x 
