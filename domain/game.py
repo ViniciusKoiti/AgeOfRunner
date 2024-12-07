@@ -1,3 +1,5 @@
+# Primeiro, vamos modificar o game.py para incluir a lógica de game over
+
 from typing import List
 from domain.entity.camera import Camera
 from domain.entity.ground_segment import GroundSegment
@@ -26,7 +28,7 @@ class Game:
         self.event_handler = event_handler
         self.texture_port = texture_port
         self.clock = clock
-        self.physics = physics  # Nova porta de física
+        self.physics = physics
         self.state = GameState.MENU
         self.game_objects: List[GameObject] = []
         self.camera = Camera(800, 600, WORLD_BOUNDS)
@@ -48,18 +50,17 @@ class Game:
         
         ground = GroundSegment(
             physics=self.physics,
-            position=Vector2D(0, 550),
+            position=Vector2D(0, 500),
             width=300
         )
 
         ground2 = GroundSegment(
             physics=self.physics,
-            position=Vector2D(0, 300),
+            position=Vector2D(0, 50),
             width=300
         )
 
         self.game_objects.extend([player, ground, ground2])
-        
         
     def start_game(self):
         self.state = GameState.PLAYING
@@ -70,6 +71,14 @@ class Game:
         
     def exit_game(self):
         self.event_handler.quit()
+
+    def check_player_in_bounds(self):
+        for obj in self.game_objects:
+            if isinstance(obj, Player):
+                # Verifica se o player está completamente fora da view da câmera
+                if not self.camera.is_in_view(obj.position, obj.size[0], obj.size[1]):
+                    self.state = GameState.GAME_OVER
+                break
         
     def handle_input(self):
         if self.state == GameState.MENU:
@@ -84,10 +93,12 @@ class Game:
                 if isinstance(obj, Player):
                     obj.handle_input(self.event_handler)
                     break
+        elif self.state == GameState.GAME_OVER:
+            if self.event_handler.is_key_pressed("return"):
+                self.state = GameState.MENU
+                self.game_objects.clear()
                 
     def update(self, delta_time):
-    
-       
         for obj in self.game_objects:
             obj.update(delta_time)
 
@@ -97,7 +108,7 @@ class Game:
                 if isinstance(obj, Player):
                     self.camera.follow(obj.position)
                     break
-        self.renderer.present()    
+            self.check_player_in_bounds()
             
     def render(self, delta_time):
         self.renderer.clear()
@@ -109,6 +120,9 @@ class Game:
                 if self.camera.is_in_view(obj.position, obj.size[0], obj.size[1]):
                     screen_pos = self.camera.world_to_screen(obj.position)
                     obj.render_at_position(self.renderer, screen_pos, delta_time)
+        elif self.state == GameState.GAME_OVER:
+            self.renderer.draw_text("Game Over!", 300, 250, (255, 0, 0))
+            self.renderer.draw_text("Press BACKSPACE to return to menu", 200, 300, (255, 255, 255))
            
         self.renderer.present()
             
@@ -125,10 +139,3 @@ class Game:
         if hasattr(self.physics, 'cleanup'):
             self.physics.cleanup()
         self.event_handler.quit()
-
-
-   
-
-if __name__ == "__main__":
-    game = create_game()
-    game.run()
