@@ -43,6 +43,8 @@ class Game:
         # Componentes do jogo
         self.camera = Camera(800, 600, WORLD_BOUNDS)
         self.menu = self.create_menu()
+        self.pause_menu = self.create_pause_menu()
+        
 
     def create_menu(self) -> Menu:
         menu = Menu(self.renderer)
@@ -50,6 +52,36 @@ class Game:
         menu.add_item("Options", self.show_options)
         menu.add_item("Exit", self.exit_game)
         return menu
+    
+    
+    def resume_game(self):
+        """Resume the game from pause state"""
+        self.state_manager.change_state(GameState.PLAYING)
+
+    def restart_game(self):
+        """Restart the game"""
+        self.reset_game()
+        self.start_game()
+
+    def exit_to_menu(self):
+        """Exit to main menu"""
+        self.reset_game()
+        self.state_manager.change_state(GameState.MENU)
+    
+    
+    def create_pause_menu(self) -> Menu:
+        pause_menu = Menu(self.renderer)
+        pause_menu.add_item("Resume", self.resume_game)
+        pause_menu.add_item("Restart", self.restart_game)
+        pause_menu.add_item("Exit to Menu", self.exit_to_menu)
+        return pause_menu
+
+    def toggle_pause(self):
+        current_state = self.state_manager.get_current_state()
+        if current_state == GameState.PLAYING:
+            self.state_manager.change_state(GameState.PAUSED)
+        elif current_state == GameState.PAUSED:
+            self.state_manager.change_state(GameState.PLAYING)
 
     def start_game(self):
         self.state_manager.change_state(GameState.PLAYING)
@@ -71,6 +103,13 @@ class Game:
             
         elif current_state == GameState.PLAYING:
             self.input_handler.handle_game_input(self.object_manager.get_player())
+            if self.input_handler.check_pause_input():  # Allow unpausing
+                self.toggle_pause()
+            
+        elif current_state == GameState.PAUSED:
+            self.input_handler.handle_menu_input(self.pause_menu)
+            if self.input_handler.check_pause_input():  # Allow unpausing
+                self.toggle_pause()
             
         elif current_state == GameState.GAME_OVER and not self.name_input.active:
             if self.input_handler.handle_game_over_input(self.name_input):
@@ -90,24 +129,33 @@ class Game:
 
     def render(self, delta_time):
         current_state = self.state_manager.get_current_state()
-        
+    
         if current_state == GameState.MENU:
             self.game_renderer.render_menu(self.menu, self.score_manager.get_top_scores(5))
-            
+        
         elif current_state == GameState.PLAYING:
             self.game_renderer.render_game(
-                self.object_manager.get_objects(),
-                self.camera,
-                self.score_tracker.get_score(),
-                delta_time
-            )
-            
+            self.object_manager.get_objects(),
+            self.camera,
+            self.score_tracker.get_score(),
+            delta_time
+        )
+        
+        elif current_state == GameState.PAUSED:
+            self.game_renderer.render_game(
+            self.object_manager.get_objects(),
+            self.camera,
+            self.score_tracker.get_score(),
+            delta_time
+        )
+            self.game_renderer.render_pause_menu(self.pause_menu)
+        
         elif current_state == GameState.GAME_OVER:
             self.game_renderer.render_game_over(
-                self.score_tracker.get_score(),
-                self.name_input
-            )
-            
+            self.score_tracker.get_score(),
+            self.name_input
+        )
+        
         self.game_renderer.present()
 
     def process_text_input(self, char: str, is_backspace: bool, is_return: bool):
@@ -121,9 +169,19 @@ class Game:
             self.score_manager.reload_scores()
             self.reset_game()
 
+   
     def reset_game(self):
+        """Reset completo do estado do jogo"""
         self.object_manager.clear()
         self.score_tracker.reset()
+        if hasattr(self.physics, 'space'):
+            self.physics.space.remove(*self.physics.space.bodies)
+            self.physics.space.remove(*self.physics.space.shapes)
+        self.physics.bodies.clear()
+        self.physics.shapes.clear()
+        self.physics.next_id = 0
+        self.physics.grounded_bodies.clear()
+
 
     def run(self):
         running = True

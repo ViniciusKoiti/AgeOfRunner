@@ -19,3 +19,5 @@ class GameStateManager:
         
     def get_current_state(self) -> GameState:
         return self.state
+    
+    

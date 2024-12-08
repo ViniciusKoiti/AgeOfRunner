@@ -27,3 +27,6 @@ class InputHandler:
         
     def get_text_input(self):
         return self.event_handler.get_text_input()
+    
+    def check_pause_input(self) -> bool:
+        return self.event_handler.is_key_pressed("pause")
