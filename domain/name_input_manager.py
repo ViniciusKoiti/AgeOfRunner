@@ -4,6 +4,7 @@ class NameInputManager:
         self.name = ""
         self.active = False
         
+        
     def start_input(self):
         self.active = True
         self.name = ""

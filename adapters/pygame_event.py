@@ -21,6 +21,9 @@ class PygameEvent(EventPort):
     
     @override   
     def poll_events(self) -> bool:
+        
+        self.current_text_input = ("", False, False)
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return False
