@@ -5,14 +5,15 @@ from domain.menu import Menu
 from domain.entity.player import Player
 from domain.entity.game_object import GameObject
 from domain.game_state import GameState
+from domain.name_input_manager import NameInputManager
 from domain.physics.vector2D import Vector2D
+from domain.score_manager import ScoreManager
+from domain.score_tracker import ScoreTracker
 from ports.clock_port import ClockPort
 from ports.event_port import EventPort
 from ports.renderer_port import RendererPort
 from ports.physics_port import PhysicsPort
 from ports.texture_port import TexturePort
-import json
-import os
 
 WORLD_BOUNDS = (0, 0, 500, 500)
 SCORES_FILE = "scores.txt"
@@ -35,31 +36,12 @@ class Game:
         self.game_objects: List[GameObject] = []
         self.camera = Camera(800, 600, WORLD_BOUNDS)
         self.menu = self.create_menu()
-        self.score = 0
-        self.player_name = ""
-        self.waiting_for_name = False
-        self.furthest_right = None
         self.player = None
-        self.high_scores = self.load_scores()
         
-    def load_scores(self) -> List[Dict[str, any]]:
-        if not os.path.exists(SCORES_FILE):
-            return []
-        try:
-            with open(SCORES_FILE, 'r') as f:
-                return json.loads(f.read())
-        except:
-            return []
-        
-    def save_score(self, name: str, score: int):
-        scores = self.load_scores()
-        scores.append({"name": name, "score": score})
-        scores.sort(key=lambda x: x["score"], reverse=True)
-        scores = scores[:10]
-        
-        with open(SCORES_FILE, 'w') as f:
-            json.dump(scores, f)
-        
+        # Gerenciadores
+        self.score_manager = ScoreManager(SCORES_FILE)
+        self.name_input = NameInputManager(MAX_NAME_LENGTH)
+        self.score_tracker = ScoreTracker()
         
     def init_game_objects(self):
         self.player = Player(
@@ -67,7 +49,7 @@ class Game:
             position=Vector2D(200, 400),
             texture_port=self.texture_port
         )
-        self.furthest_right = self.player.position.x  # Inicializa com a posição inicial do player
+        self.score_tracker.initialize_position(self.player.position)
         
         ground = GroundSegment(
             physics=self.physics,
@@ -86,8 +68,7 @@ class Game:
     def check_player_in_bounds(self):
         if self.player and self.camera.is_in_death_zone(self.player.position):
             self.state = GameState.GAME_OVER
-            self.waiting_for_name = True  # Ativa a entrada do nome
-            self.player_name = ""  # Limpa qualquer nome anterior
+            self.name_input.start_input()
             
     def create_menu(self) -> Menu:
         menu = Menu(self.renderer)
@@ -107,13 +88,10 @@ class Game:
         elif self.state == GameState.PLAYING:
             if self.player:
                 self.player.handle_input(self.event_handler)
-        elif self.state == GameState.GAME_OVER and not self.waiting_for_name:
+        elif self.state == GameState.GAME_OVER and not self.name_input.active:
             if self.event_handler.is_key_pressed("return"):
                 self.state = GameState.MENU
-                self.game_objects.clear()
-                self.player = None
-                self.score = 0
-                self.furthest_right = None
+                self.reset_game()
                 
     def update(self, delta_time):
         if self.state == GameState.PLAYING:
@@ -125,8 +103,7 @@ class Game:
                 
     def start_game(self):
         self.state = GameState.PLAYING
-        self.score = 0
-        self.furthest_right = None
+        self.score_tracker.reset()
         self.init_game_objects()
         
     def show_options(self):
@@ -140,9 +117,8 @@ class Game:
         
         if self.state == GameState.MENU:
             self.menu.render()
-            # Renderiza o ranking
             self.renderer.draw_text("High Scores:", 300, 400, (255, 255, 255))
-            for i, score in enumerate(self.high_scores[:5]):
+            for i, score in enumerate(self.score_manager.get_top_scores(5)):
                 self.renderer.draw_text(
                     f"{i+1}. {score['name']}: {score['score']}", 
                     300, 
@@ -154,13 +130,13 @@ class Game:
                 if self.camera.is_in_view(obj.position, obj.size[0], obj.size[1]):
                     screen_pos = self.camera.world_to_screen(obj.position)
                     obj.render_at_position(self.renderer, screen_pos, delta_time)
-            self.renderer.draw_text(f"Score: {self.score}", 5, 5, (255, 255, 255))
+            self.renderer.draw_text(f"Score: {self.score_tracker.get_score()}", 5, 5, (255, 255, 255))
         elif self.state == GameState.GAME_OVER:
             self.renderer.draw_text("Game Over!", 300, 250, (255, 0, 0))
-            self.renderer.draw_text(f"Final Score: {self.score}", 280, 300, (255, 255, 255))
-            if self.waiting_for_name:
+            self.renderer.draw_text(f"Final Score: {self.score_tracker.get_score()}", 280, 300, (255, 255, 255))
+            if self.name_input.active:
                 self.renderer.draw_text("Enter your name:", 300, 350, (255, 255, 255))
-                self.renderer.draw_text(f"{self.player_name}_", 300, 400, (255, 255, 255))
+                self.renderer.draw_text(f"{self.name_input.name}_", 300, 400, (255, 255, 255))
                 self.renderer.draw_text("Press ENTER to confirm", 250, 450, (255, 255, 255))
             else:
                 self.renderer.draw_text("Press BACKSPACE to return to menu", 200, 350, (255, 255, 255))
@@ -185,35 +161,19 @@ class Game:
         self.event_handler.quit()
         
     def update_score(self):
-        if not self.player:
-            return
-            
-        current_x = self.player.position.x
-        
-        if self.furthest_right is None:
-            self.furthest_right = current_x
-            return
-            
-        if current_x > self.furthest_right:
-            points = int(current_x - self.furthest_right)
-            self.score += points
-            self.furthest_right = current_x
+        if self.player:
+            self.score_tracker.update_score(self.player.position)
             
     def process_text_input(self, char: str, is_backspace: bool, is_return: bool):
-        if not self.waiting_for_name:
-            return
-            
-        if is_return and len(self.player_name.strip()) > 0:
-            self.save_score(self.player_name, self.score)
-            self.waiting_for_name = False
-            self.player_name = ""
+        if self.name_input.process_input(char, is_backspace, is_return):
+            self.score_manager.save_score(self.name_input.get_name(), 
+                                        self.score_tracker.get_score())
+            self.name_input.stop_input()
             self.state = GameState.MENU
-            self.high_scores = self.load_scores()  # Recarrega as pontuações
-            self.game_objects.clear()
-            self.player = None
-            self.score = 0
-            self.furthest_right = None
-        elif is_backspace:
-            self.player_name = self.player_name[:-1]
-        elif len(self.player_name) < MAX_NAME_LENGTH and char.isprintable():
-            self.player_name += char 
+            self.score_manager.reload_scores()
+            self.reset_game()
+            
+    def reset_game(self):
+        self.game_objects.clear()
+        self.player = None
+        self.score_tracker.reset()
