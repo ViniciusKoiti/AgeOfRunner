@@ -12,19 +12,15 @@ class DebugPygameRenderer(RendererPort):
 
     @override    
     def draw_rect(self, position: Vector2D, size: Tuple[int, int], color: Tuple[int, int, int]):
-        # Desenha o retângulo normal
         pygame.draw.rect(self.screen, color, (position.x, position.y, size[0], size[1]))
         
         if self.debug_mode:
-            # Desenha uma borda verde para mostrar os limites visuais
             pygame.draw.rect(self.screen, (0, 255, 0), (position.x, position.y, size[0], size[1]), 1)
             
-            # Desenha um ponto vermelho no centro
             center_x = position.x + size[0]/2
             center_y = position.y + size[1]/2
             pygame.draw.circle(self.screen, (255, 0, 0), (int(center_x), int(center_y)), 2)
             
-            # Desenha texto com as coordenadas
             pos_text = f"({int(position.x)},{int(position.y)})"
             size_text = f"{int(size[0])}x{int(size[1])}"
             text_surface = self.font.render(pos_text, True, (255, 255, 0))

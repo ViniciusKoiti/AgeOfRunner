@@ -31,7 +31,6 @@ class Game:
         self.physics = physics
         self.renderer = renderer
         self.event_handler = event_handler
-        # Gerenciadores
         self.state_manager = GameStateManager()
         self.object_manager = GameObjectManager(physics, texture_port)
         self.input_handler = InputHandler(event_handler)
@@ -40,7 +39,6 @@ class Game:
         self.name_input = NameInputManager(MAX_NAME_LENGTH)
         self.score_tracker = ScoreTracker()
         
-        # Componentes do jogo
         self.camera = Camera(800, 600, WORLD_BOUNDS)
         self.menu = self.create_menu()
         self.pause_menu = self.create_pause_menu()
@@ -55,16 +53,13 @@ class Game:
     
     
     def resume_game(self):
-        """Resume the game from pause state"""
         self.state_manager.change_state(GameState.PLAYING)
 
     def restart_game(self):
-        """Restart the game"""
         self.reset_game()
         self.start_game()
 
     def exit_to_menu(self):
-        """Exit to main menu"""
         self.reset_game()
         self.state_manager.change_state(GameState.MENU)
     
@@ -171,7 +166,6 @@ class Game:
 
    
     def reset_game(self):
-        """Reset completo do estado do jogo"""
         self.object_manager.clear()
         self.score_tracker.reset()
         if hasattr(self.physics, 'space'):
