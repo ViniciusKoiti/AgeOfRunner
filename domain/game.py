@@ -15,7 +15,7 @@ from ports.renderer_port import RendererPort
 from ports.texture_port import TexturePort
 import pygame
 
-WORLD_BOUNDS = (0, 0, 500, 500)
+WORLD_BOUNDS = (0, 0, 5000, float('inf'))
 SCORES_FILE = "scores.txt"
 MAX_NAME_LENGTH = 20
 
