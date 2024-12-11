@@ -13,6 +13,7 @@ from ports.event_port import EventPort
 from ports.physics_port import PhysicsPort
 from ports.renderer_port import RendererPort
 from ports.texture_port import TexturePort
+import pygame
 
 WORLD_BOUNDS = (0, 0, 500, 500)
 SCORES_FILE = "scores.txt"
@@ -38,6 +39,8 @@ class Game:
         self.score_manager = ScoreManager(SCORES_FILE)
         self.name_input = NameInputManager(MAX_NAME_LENGTH)
         self.score_tracker = ScoreTracker()
+
+        
         
         self.camera = Camera(800, 600, WORLD_BOUNDS)
         self.menu = self.create_menu()
@@ -83,6 +86,9 @@ class Game:
         self.score_tracker.reset()
         initial_position = self.object_manager.initialize_objects()
         self.score_tracker.initialize_position(initial_position)
+        pygame.mixer.music.load('domain/animation/assets/Sound/music.mp3')
+        pygame.mixer.music.set_volume(0.1)
+        pygame.mixer.music.play()
 
     def check_player_in_bounds(self):
         player = self.object_manager.get_player()
