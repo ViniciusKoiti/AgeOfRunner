@@ -4,6 +4,7 @@ from domain.physics.vector2D import Vector2D
 from ports.event_port import EventPort
 from ports.physics_port import PhysicsPort
 import time
+import pygame
 
 from ports.texture_port import TexturePort
 
@@ -85,12 +86,13 @@ class Player(GameObject):
         self.apply_force(Vector2D(-self.move_force, 0))
         
     def jump(self):
-        if isinstance(self.physics, PhysicsPort):
+        if isinstance(self.physics, PhysicsPort): 
             if(self.is_grounded and self.can_toggle_gravity):
                 self.gravity_inverted = not self.gravity_inverted  # Inverte o estado da gravidade
                 self.animator.gravity_inverted = self.gravity_inverted  # Atualiza o animator
                 self.physics.flip_gravity()
                 self.can_toggle_gravity = False
+                self.play_engine_sound()
 
     def handle_input(self, event_handler: EventPort):
         if event_handler.is_key_pressed("left"):
@@ -99,6 +101,13 @@ class Player(GameObject):
             self.move_right()
         if event_handler.is_key_pressed("jump"):
             self.jump()
+
+
+    @staticmethod
+    def play_engine_sound():
+        engine = pygame.mixer.Sound(('domain/animation/assets/Sound/jump-up.mp3'))
+        engine.set_volume(0.2)
+        pygame.mixer.Sound.play(engine)
 
     
 
